@@ -1,9 +1,9 @@
 package com.gonjunhan.helloserver.common;
 
 public class Result<T> {
-    private Integer code;  // 状态码
-    private String msg;    // 提示信息
-    private T data;        // 核心数据
+    private Integer code;
+    private String msg;
+    private T data;
 
     // 无参构造
     public Result() {}
@@ -16,42 +16,46 @@ public class Result<T> {
     }
 
     // Getter & Setter
-    public Integer getCode() {
-        return code;
-    }
+    public Integer getCode() { return code; }
+    public void setCode(Integer code) { this.code = code; }
+    public String getMsg() { return msg; }
+    public void setMsg(String msg) { this.msg = msg; }
+    public T getData() { return data; }
+    public void setData(T data) { this.data = data; }
 
-    public void setCode(Integer code) {
-        this.code = code;
-    }
-
-    public String getMsg() {
-        return msg;
-    }
-
-    public void setMsg(String msg) {
-        this.msg = msg;
-    }
-
-    public T getData() {
-        return data;
-    }
-
-    public void setData(T data) {
-        this.data = data;
-    }
-
-    // 静态辅助方法：成功（带数据）
+    // 静态工厂方法：成功回调（带数据）
     public static <T> Result<T> success(T data) {
-        return new Result<>(200, "操作成功", data);
+        Result<T> result = new Result<>();
+        result.code = ResultCode.SUCCESS.getCode();
+        result.msg = ResultCode.SUCCESS.getMsg();
+        result.data = data;
+        return result;
     }
 
-    // 静态辅助方法：成功（无数据）
+    // 静态工厂方法：成功回调（无数据）
     public static <T> Result<T> success() {
-        return new Result<>(200, "操作成功", null);
+        Result<T> result = new Result<>();
+        result.code = ResultCode.SUCCESS.getCode();
+        result.msg = ResultCode.SUCCESS.getMsg();
+        result.data = null;
+        return result;
     }
 
-    // 静态辅助方法：失败
+    // 静态工厂方法：失败回调（适配枚举）
+    public static <T> Result<T> error(ResultCode resultCode) {
+        Result<T> result = new Result<>();
+        result.code = resultCode.getCode();
+        result.msg = resultCode.getMsg();
+        result.data = null;
+        return result;
+    }
+
+    // 兼容旧代码：接收 code 和 msg 的 error 方法
     public static <T> Result<T> error(Integer code, String msg) {
-        return new Result<>(code, msg, null);
+        Result<T> result = new Result<>();
+        result.code = code;
+        result.msg = msg;
+        result.data = null;
+        return result;
     }
 }
