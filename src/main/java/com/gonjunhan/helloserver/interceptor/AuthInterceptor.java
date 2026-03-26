@@ -1,43 +1,48 @@
 package com.gonjunhan.helloserver.interceptor;
 
+import com.gonjunhan.helloserver.common.JwtUtil;
+import com.gonjunhan.helloserver.common.Result;
+import com.gonjunhan.helloserver.common.ResultCode;
+import com.google.gson.Gson;
+import org.springframework.web.servlet.HandlerInterceptor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.servlet.HandlerInterceptor;
-import java.io.PrintWriter;
+import java.io.IOException;
 
 public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1. 获取本次请求的 HTTP 动词和具体路径
-        String method = request.getMethod();
-        String uri = request.getRequestURI();
-
-        // 2. 手写细粒度放行规则
-        // 规则 A：POST /api/users → 允许注册（公开接口）
-        boolean isCreateUser = "POST".equalsIgnoreCase(method) && "/api/users".equals(uri);
-        // 规则 B：GET /api/users/* → 允许查看用户信息（公开接口）
-        boolean isGetUser = "GET".equalsIgnoreCase(method) && uri.startsWith("/api/users/");
-
-        // 满足任一公开规则，直接放行
-        if (isCreateUser || isGetUser) {
+        // 1. 放行 OPTIONS 预检请求
+        if ("OPTIONS".equals(request.getMethod())) {
             return true;
         }
 
-        // 3. 敏感操作（DELETE/PUT 等）必须校验 Token
-        String token = request.getHeader("Authorization");
-        if (token == null || token.isEmpty()) {
-            response.setContentType("application/json;charset=UTF-8");
+        // 2. 获取 Authorization Header
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // 没有 Token 或格式错误 → 返回 401
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            PrintWriter writer = response.getWriter();
-            String errorJson = "{\"code\":401,\"msg\":\"非法操作：敏感动作 [" + method + "] 需要鉴权\",\"data\":null}";
-            writer.write(errorJson);
-            writer.flush();
-            writer.close();
+            response.setContentType("application/json;charset=UTF-8");
+            Result<String> result = Result.error(ResultCode.UNAUTHORIZED);
+            response.getWriter().write(new Gson().toJson(result));
             return false;
         }
 
-        // Token 存在，放行
-        return true;
+        // 3. 提取 Token（去掉 "Bearer " 前缀，长度 7）
+        String token = authHeader.substring(7);
+
+        try {
+            // 4. 验证 Token
+            JwtUtil.validateTokenAndGetUsername(token);
+            return true; // Token 有效 → 放行
+        } catch (RuntimeException e) {
+            // Token 无效/过期 → 返回 401
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            Result<String> result = Result.error(ResultCode.UNAUTHORIZED);
+            response.getWriter().write(new Gson().toJson(result));
+            return false;
+        }
     }
 }
