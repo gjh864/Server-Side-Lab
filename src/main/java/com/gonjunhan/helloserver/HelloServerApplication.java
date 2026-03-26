@@ -1,11 +1,11 @@
 package com.gonjunhan.helloserver;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
-// 重点：加上 exclude 关闭数据库自动配置
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+@SpringBootApplication
+@MapperScan("com.gonjunhan.helloserver.mapper")
 public class HelloServerApplication {
 
     public static void main(String[] args) {
