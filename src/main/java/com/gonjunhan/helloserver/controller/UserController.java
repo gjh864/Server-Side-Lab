@@ -2,6 +2,7 @@ package com.gonjunhan.helloserver.controller;
 
 import com.gonjunhan.helloserver.common.Result;
 import com.gonjunhan.helloserver.dto.UserDTO;
+import com.gonjunhan.helloserver.entity.User;
 import com.gonjunhan.helloserver.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -25,9 +26,9 @@ public class UserController {
         return userService.login(userDTO);
     }
 
-    // 3. 查询用户信息（GET /api/users/{id}）
+    // 3. 查询用户信息（GET /api/users/{id}）：调用真实数据库逻辑
     @GetMapping("/{id}")
-    public Result<String> getUser(@PathVariable("id") Long id) {
-        return Result.success("查询成功，正在返回 ID 为 " + id + " 的用户信息");
+    public Result<User> getUser(@PathVariable("id") Long id) {
+        return userService.getById(id);
     }
 }
