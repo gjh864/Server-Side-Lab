@@ -1,6 +1,7 @@
 package com.gonjunhan.helloserver.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page; // 新增这一行导入
 import com.gonjunhan.helloserver.common.JwtUtil;
 import com.gonjunhan.helloserver.common.Result;
 import com.gonjunhan.helloserver.common.ResultCode;
@@ -14,20 +15,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class UserServiceImpl implements UserService {
 
-    // 注入 MyBatis-Plus Mapper（操作数据库）
     @Autowired
     private UserMapper userMapper;
 
     @Override
     public Result<String> register(UserDTO userDTO) {
-        // 1. 校验用户名是否已存在（使用LambdaQueryWrapper，类型安全）
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, userDTO.getUsername());
         User existUser = userMapper.selectOne(queryWrapper);
         if (existUser != null) {
             return Result.error(ResultCode.USER_HAS_EXISTED);
         }
-        // 2. 存入真实 PostgreSQL 数据库
         User user = new User();
         user.setUsername(userDTO.getUsername());
         user.setPassword(userDTO.getPassword());
@@ -37,23 +35,19 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result<String> login(UserDTO userDTO) {
-        // 1. 从数据库查询用户（使用LambdaQueryWrapper）
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, userDTO.getUsername());
         User user = userMapper.selectOne(queryWrapper);
         if (user == null) {
             return Result.error(ResultCode.USER_NOT_EXIST);
         }
-        // 2. 校验密码
         if (!user.getPassword().equals(userDTO.getPassword())) {
             return Result.error(ResultCode.PASSWORD_ERROR);
         }
-        // 3. 生成 Token
         String token = JwtUtil.generateToken(userDTO.getUsername());
         return Result.success("Bearer " + token);
     }
 
-    // 根据 ID 查询用户（受保护接口）
     @Override
     public Result<User> getById(Long id) {
         User user = userMapper.selectById(id);
@@ -62,4 +56,12 @@ public class UserServiceImpl implements UserService {
         }
         return Result.success(user);
     }
+
+    @Override
+    public Result<Object> getUserPage(Integer pageNum, Integer pageSize) {
+        Page<User> page = new Page<>(pageNum, pageSize);
+        Page<User> userPage = userMapper.selectPage(page, null);
+        return Result.success(userPage);
+    }
+
 }
