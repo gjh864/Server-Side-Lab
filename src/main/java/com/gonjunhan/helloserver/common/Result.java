@@ -58,4 +58,12 @@ public class Result<T> {
         result.data = null;
         return result;
     }
+
+    public static <T> Result<T> error(String msg) {
+        Result<T> result = new Result<>();
+        result.code = 500; // 系统异常错误码
+        result.msg = msg;
+        result.data = null;
+        return result;
+    }
 }

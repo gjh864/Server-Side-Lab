@@ -1,16 +1,24 @@
 package com.gonjunhan.helloserver.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page; // 新增这一行导入
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gonjunhan.helloserver.common.JwtUtil;
 import com.gonjunhan.helloserver.common.Result;
 import com.gonjunhan.helloserver.common.ResultCode;
 import com.gonjunhan.helloserver.dto.UserDTO;
 import com.gonjunhan.helloserver.entity.User;
+import com.gonjunhan.helloserver.entity.UserInfo;
 import com.gonjunhan.helloserver.mapper.UserMapper;
+import com.gonjunhan.helloserver.mapper.UserInfoMapper;
 import com.gonjunhan.helloserver.service.UserService;
+import com.gonjunhan.helloserver.vo.UserDetailVO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -18,10 +26,18 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserMapper userMapper;
 
+    @Autowired
+    private UserInfoMapper userInfoMapper;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    private static final String CACHE_KEY_PREFIX = "user:detail:";
+
     @Override
     public Result<String> register(UserDTO userDTO) {
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, userDTO.getUsername());
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", userDTO.getUsername());
         User existUser = userMapper.selectOne(queryWrapper);
         if (existUser != null) {
             return Result.error(ResultCode.USER_HAS_EXISTED);
@@ -35,8 +51,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result<String> login(UserDTO userDTO) {
-        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(User::getUsername, userDTO.getUsername());
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", userDTO.getUsername());
         User user = userMapper.selectOne(queryWrapper);
         if (user == null) {
             return Result.error(ResultCode.USER_NOT_EXIST);
@@ -64,4 +80,49 @@ public class UserServiceImpl implements UserService {
         return Result.success(userPage);
     }
 
+    @Override
+    public Result<UserDetailVO> getUserDetail(Long userId) {
+        String key = CACHE_KEY_PREFIX + userId;
+
+        String json = redisTemplate.opsForValue().get(key);
+        if (json != null && !json.isBlank()) {
+            try {
+                UserDetailVO vo = cn.hutool.json.JSONUtil.toBean(json, UserDetailVO.class);
+                return Result.success(vo);
+            } catch (Exception e) {
+                redisTemplate.delete(key);
+            }
+        }
+
+        UserDetailVO detail = userMapper.getUserDetail(userId);
+        if (detail == null) {
+            return Result.error(ResultCode.USER_NOT_EXIST);
+        }
+
+        redisTemplate.opsForValue().set(key, cn.hutool.json.JSONUtil.toJsonStr(detail), 10, TimeUnit.MINUTES);
+
+        return Result.success(detail);
+    }
+
+    // ===================== 【已经修好！】 =====================
+    @Override
+    @Transactional
+    public Result<String> updateUserInfo(UserInfo userInfo) {
+        if (userInfo == null || userInfo.getUserId() == null) {
+            return Result.error("参数错误");
+        }
+
+        // 不用XML，直接条件更新
+        UpdateWrapper<UserInfo> wrapper = new UpdateWrapper<>();
+        wrapper.eq("user_id", userInfo.getUserId());
+        int rows = userInfoMapper.update(userInfo, wrapper);
+
+        if (rows > 0) {
+            String key = CACHE_KEY_PREFIX + userInfo.getUserId();
+            redisTemplate.delete(key);
+            return Result.success("更新成功");
+        } else {
+            return Result.error("更新失败");
+        }
+    }
 }
