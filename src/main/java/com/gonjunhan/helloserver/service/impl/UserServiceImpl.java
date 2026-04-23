@@ -3,7 +3,6 @@ package com.gonjunhan.helloserver.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gonjunhan.helloserver.common.JwtUtil;
 import com.gonjunhan.helloserver.common.Result;
 import com.gonjunhan.helloserver.common.ResultCode;
 import com.gonjunhan.helloserver.dto.UserDTO;
@@ -11,6 +10,7 @@ import com.gonjunhan.helloserver.entity.User;
 import com.gonjunhan.helloserver.entity.UserInfo;
 import com.gonjunhan.helloserver.mapper.UserMapper;
 import com.gonjunhan.helloserver.mapper.UserInfoMapper;
+import com.gonjunhan.helloserver.security.JwtUtil;
 import com.gonjunhan.helloserver.service.UserService;
 import com.gonjunhan.helloserver.vo.UserDetailVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +32,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     private static final String CACHE_KEY_PREFIX = "user:detail:";
 
     @Override
@@ -49,18 +52,22 @@ public class UserServiceImpl implements UserService {
         return Result.success("注册成功！");
     }
 
+    // ===================== 【正确 JWT 登录】 =====================
     @Override
     public Result<String> login(UserDTO userDTO) {
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", userDTO.getUsername());
         User user = userMapper.selectOne(queryWrapper);
+
         if (user == null) {
             return Result.error(ResultCode.USER_NOT_EXIST);
         }
         if (!user.getPassword().equals(userDTO.getPassword())) {
             return Result.error(ResultCode.PASSWORD_ERROR);
         }
-        String token = JwtUtil.generateToken(userDTO.getUsername());
+
+        // 生成 JWT
+        String token = jwtUtil.generateToken(user.getUsername());
         return Result.success("Bearer " + token);
     }
 
@@ -104,7 +111,7 @@ public class UserServiceImpl implements UserService {
         return Result.success(detail);
     }
 
-    // ===================== 【已经修好！】 =====================
+    // ===================== 【正确更新 + 删除缓存】 =====================
     @Override
     @Transactional
     public Result<String> updateUserInfo(UserInfo userInfo) {
@@ -112,7 +119,6 @@ public class UserServiceImpl implements UserService {
             return Result.error("参数错误");
         }
 
-        // 不用XML，直接条件更新
         UpdateWrapper<UserInfo> wrapper = new UpdateWrapper<>();
         wrapper.eq("user_id", userInfo.getUserId());
         int rows = userInfoMapper.update(userInfo, wrapper);

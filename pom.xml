@@ -41,7 +41,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- JWT -->
+        <!-- JWT 正确依赖（只保留这一组） -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -95,14 +95,12 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Spring Security 依赖 -->
+        <!-- Spring Security -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
     </dependencies>
-
-
 
     <build>
         <plugins>
