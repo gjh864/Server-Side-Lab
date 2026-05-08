@@ -26,10 +26,10 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/users", "/api/users/login").permitAll()
+                        // 👇 就在这里加上 /api/chat/**
+                        .requestMatchers("/api/users", "/api/users/login", "/api/chat/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                // 关键：JWT 过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable());
